@@ -273,7 +273,7 @@ if (typeof Slick === "undefined") {
 			.appendTo($footerRowScroller);
 
       if (!options.showFooterRow || !options.footerSumCells.length) {
-			$footerRowScroller.hide();
+			//$footerRowScroller.hide();
 	 }
 	 //
 
@@ -330,6 +330,7 @@ if (typeof Slick === "undefined") {
             .delegate(".slick-header-column", "mouseleave", handleHeaderMouseLeave);
         $headerRowScroller
             .bind("scroll", handleHeaderRowScroll);
+        $footerRowScroller.bind("scroll", handleFooterRowScroll);
         $focusSink.add($focusSink2)
             .bind("keydown", handleKeyDown);
         $canvas
