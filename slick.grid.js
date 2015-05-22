@@ -73,6 +73,8 @@ if (typeof Slick === "undefined") {
       editorLock: Slick.GlobalEditorLock,
       showHeaderRow: false,
       headerRowHeight: 25,
+      showFooterRow: false,
+      footerRowHeight: 25,
       showTopPanel: false,
       topPanelHeight: 25,
       formatterFactory: null,
@@ -121,6 +123,7 @@ if (typeof Slick === "undefined") {
     var $headerScroller;
     var $headers;
     var $headerRow, $headerRowScroller, $headerRowSpacer;
+    var $footerRow, $footerRowScroller, $footerRowSpacer;
     var $topPanelScroller;
     var $topPanel;
     var $viewport;
@@ -134,6 +137,7 @@ if (typeof Slick === "undefined") {
     var headerColumnWidthDiff = 0, headerColumnHeightDiff = 0, // border+padding
         cellWidthDiff = 0, cellHeightDiff = 0;
     var absoluteColumnMinWidth;
+	var numberOfRows = 0;
 
     var tabbingDirection = 1;
     var activePosX;
@@ -236,15 +240,16 @@ if (typeof Slick === "undefined") {
 
       $focusSink = $("<div tabIndex='0' hideFocus style='position:fixed;width:0;height:0;top:0;left:0;outline:0;'></div>").appendTo($container);
 
-      $headerScroller = $("<div class='slick-header ui-state-default' style='overflow:hidden;position:relative;' />").appendTo($container);
-      $headers = $("<div class='slick-header-columns' style='left:-1000px' />").appendTo($headerScroller);
-      $headers.width(getHeadersWidth());
-
+      // Showing header row before headers
       $headerRowScroller = $("<div class='slick-headerrow ui-state-default' style='overflow:hidden;position:relative;' />").appendTo($container);
       $headerRow = $("<div class='slick-headerrow-columns' />").appendTo($headerRowScroller);
       $headerRowSpacer = $("<div style='display:block;height:1px;position:absolute;top:0;left:0;'></div>")
           .css("width", getCanvasWidth() + scrollbarDimensions.width + "px")
           .appendTo($headerRowScroller);
+
+      $headerScroller = $("<div class='slick-header ui-state-default' style='overflow:hidden;position:relative;' />").appendTo($container);
+      $headers = $("<div class='slick-header-columns' style='left:-1000px' />").appendTo($headerScroller);
+      $headers.width(getHeadersWidth());
 
       $topPanelScroller = $("<div class='slick-top-panel-scroller ui-state-default' style='overflow:hidden;position:relative;' />").appendTo($container);
       $topPanel = $("<div class='slick-top-panel' style='width:10000px' />").appendTo($topPanelScroller);
@@ -253,12 +258,24 @@ if (typeof Slick === "undefined") {
         $topPanelScroller.hide();
       }
 
-      if (!options.showHeaderRow) {
+      if (!options.showHeaderRow || !options.columnCategories.length) {
         $headerRowScroller.hide();
       }
 
       $viewport = $("<div class='slick-viewport' style='width:100%;overflow:auto;outline:0;position:relative;;'>").appendTo($container);
       $viewport.css("overflow-y", options.autoHeight ? "hidden" : "auto");
+
+      // Custom footerRow
+	  $footerRowScroller = $('<div class="slick-headerrow ui-state-default slick-footer-sum-row" style="overflow: hidden; position: relative;"/>').appendTo($container);
+	  $footerRow = $('<div class="slick-headerrow-columns" />').appendTo($footerRowScroller);
+	  $footerRowSpacer = $("<div style='display:block;height:1px;position:absolute;top:0;left:0;'></div>")
+			.css("width", getCanvasWidth() + scrollbarDimensions.width + "px")
+			.appendTo($footerRowScroller);
+
+      if (!options.showFooterRow || !options.footerSumCells.length) {
+			$footerRowScroller.hide();
+	 }
+	 //
 
       $canvas = $("<div class='grid-canvas' />").appendTo($viewport);
 
@@ -412,9 +429,13 @@ if (typeof Slick === "undefined") {
       if (canvasWidth != oldCanvasWidth) {
         $canvas.width(canvasWidth);
         $headerRow.width(canvasWidth);
+        $footerRow.width(canvasWidth);
         $headers.width(getHeadersWidth());
-        viewportHasHScroll = (canvasWidth > viewportW - scrollbarDimensions.width);
+		// viewportHasHScroll = (canvasWidth > viewportW - scrollbarDimensions.width);
       }
+	  // https://github.com/mleibman/SlickGrid/issues/477
+	  // Moving checking if HScroll for everytime then canvas resized
+      viewportHasHScroll = (canvasWidth > viewportW - scrollbarDimensions.width);
 
       $headerRowSpacer.width(canvasWidth + (viewportHasVScroll ? scrollbarDimensions.width : 0));
 
@@ -584,16 +605,33 @@ if (typeof Slick === "undefined") {
           "column": m
         });
 
-        if (options.showHeaderRow) {
-          var headerRowCell = $("<div class='ui-state-default slick-headerrow-column l" + i + " r" + i + "'></div>")
-              .data("column", m)
-              .appendTo($headerRow);
+        // custom footerRow
+		if (options.showFooterRow && options.footerSumCells.length) {
+			for (var ci = 0; ci < options.footerSumCells.length; ci += 2) {
+				if (options.footerSumCells[ci] == i) {
+					var footerRowCell = $("<div class='ui-state-default slick-headerrow-column slick-footerrow-column l" + i +"'></div>")
+						.attr("data-column", m.id)
+						.appendTo($footerRow);
+					}
+				}
+			}
 
-          trigger(self.onHeaderRowCellRendered, {
-            "node": headerRowCell[0],
-            "column": m
-          });
-        }
+			if (options.showHeaderRow && options.columnCategories.length) {
+				// Header column categories
+				for (var ci = 0; ci < options.columnCategories.length; ci++) {
+					if (options.columnCategories[ci].startColumn == i) {
+						var headerRowCell = $("<div class='ui-state-default slick-headerrow-column l" + i + " r" + options.columnCategories[ci].endColumn + "'></div>")
+              				.data("column", m)
+							.html(options.columnCategories[ci].category)
+              				.appendTo($headerRow);
+
+				        trigger(self.onHeaderRowCellRendered, {
+            				"node": headerRowCell[0],
+            				"column": m
+                        });
+        			}
+      			}
+            }
       }
 
       setSortColumns(sortColumns);
@@ -679,6 +717,7 @@ if (typeof Slick === "undefined") {
         tolerance: "intersection",
         helper: "clone",
         placeholder: "slick-sortable-placeholder ui-state-default slick-header-column",
+        forcePlaceholderSize: true,
         start: function (e, ui) {
           ui.placeholder.width(ui.helper.outerWidth() - headerColumnWidthDiff);
           $(ui.helper).addClass("slick-header-column-active");
@@ -1248,6 +1287,14 @@ if (typeof Slick === "undefined") {
       validateAndEnforceOptions();
 
       $viewport.css("overflow-y", options.autoHeight ? "hidden" : "auto");
+      // Custom columnCategories
+      if (!options.showHeaderRow || !options.columnCategories.length) {
+		$headerRowScroller.hide();
+	  } else {
+		$headerRowScroller.show();
+	  }
+	  //
+
       render();
     }
 
@@ -1594,7 +1641,8 @@ if (typeof Slick === "undefined") {
           parseFloat($.css($container[0], "paddingBottom", true)) -
           parseFloat($.css($headerScroller[0], "height")) - getVBoxDelta($headerScroller) -
           (options.showTopPanel ? options.topPanelHeight + getVBoxDelta($topPanelScroller) : 0) -
-          (options.showHeaderRow ? options.headerRowHeight + getVBoxDelta($headerRowScroller) : 0);
+		  (options.showHeaderRow ? options.headerRowHeight + getVBoxDelta($headerRowScroller) : 0) -
+		  (options.showFooterRow ? options.footerRowHeight + getVBoxDelta($footerRowScroller) : 0); // Custom footerRow
     }
 
     function resizeCanvas() {
@@ -1973,6 +2021,15 @@ if (typeof Slick === "undefined") {
       }
     }
 
+    // Custom footerRow
+	function handleFooterRowScroll() {
+		var scrollLeft = $footerRowScroller[0].scrollLeft;
+		if (scrollLeft != $viewport[0].scrollLeft) {
+			$viewport[0].scrollLeft = scrollLeft;
+		}
+	}
+	//
+
     function handleScroll() {
       scrollTop = $viewport[0].scrollTop;
       scrollLeft = $viewport[0].scrollLeft;
@@ -1984,6 +2041,7 @@ if (typeof Slick === "undefined") {
         $headerScroller[0].scrollLeft = scrollLeft;
         $topPanelScroller[0].scrollLeft = scrollLeft;
         $headerRowScroller[0].scrollLeft = scrollLeft;
+        $footerRowScroller[0].scrollLeft = scrollLeft; // Custom footerRow
       }
 
       if (vScrollDist) {
